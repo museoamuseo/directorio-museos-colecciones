@@ -1488,7 +1488,7 @@
   .hero { top: 4rem; width: 92vw; }
   .logo svg { max-width: 200px; }
   .hero .lead { display: none; } 
-  body::before { height: 7rem; } 
+  body::before { height: 10rem; } 
 
   /* Barra inferior flotante */
   .mobile-bottom-bar {
@@ -1538,8 +1538,24 @@
   }
   .results-panel.is-mobile-open { transform: translateY(0); }
 
+  .filters-panel.dragging, .results-panel.dragging { transition: none !important; }
+
+  .drag-handle {
+    display: block;
+    width: 40px; height: 5px;
+    border-radius: 999px;
+    background: var(--border-strong);
+    margin: 0.6rem auto 0.2rem;
+    flex-shrink: 0;
+    touch-action: none;
+  }
+
   .leaflet-bottom.leaflet-left { bottom: 5rem; } 
   .map-footer { display: none; } 
+}
+
+@media (min-width: 901px) {
+  .drag-handle { display: none; }
 }
   </style>
 </head>
@@ -1634,6 +1650,7 @@
 </div>
 
 <aside class="filters-panel" id="filters-panel" aria-label="Filtros">
+  <div class="drag-handle" aria-hidden="true"></div>
   <div class="panel-head">
     <h2 id="filters-title">Filtros</h2>
     <button type="button" class="link-btn" id="clear-filters">Limpiar</button>
@@ -1699,6 +1716,7 @@
   </aside>
 
     <section class="results-panel" id="results-panel" aria-label="Resultados" hidden>
+      <div class="drag-handle" aria-hidden="true"></div>
       <div class="panel-tabs" role="tablist" aria-label="Vista de resultados">
         <button class="panel-tab" id="tab-results" role="tab" aria-selected="true" aria-controls="list-panel-body">Resultados</button>
         <button class="panel-tab" id="tab-route" role="tab" aria-selected="false" aria-controls="route-panel-body"><span id="tab-route-label">Mi ruta</span><span class="count-badge" id="route-count-badge" hidden>0</span></button>
@@ -35796,6 +35814,65 @@ btnMobRoute.addEventListener("click", function() {
         filtersPanel.classList.remove("is-mobile-open");
       });
     }
+
+    // Deslizar hacia abajo con el dedo para cerrar los paneles en móvil
+    function enableSwipeToClose(panel, handles, closeFn) {
+      if (!panel) return;
+      var startY = 0, lastDeltaY = 0, dragging = false, startedAt = 0;
+
+      function onStart(e) {
+        if (window.innerWidth > 900) return;
+        if (!panel.classList.contains("is-mobile-open")) return;
+        var t = e.touches ? e.touches[0] : e;
+        startY = t.clientY;
+        lastDeltaY = 0;
+        dragging = true;
+        startedAt = Date.now();
+        panel.classList.add("dragging");
+      }
+      function onMove(e) {
+        if (!dragging) return;
+        var t = e.touches ? e.touches[0] : e;
+        var deltaY = t.clientY - startY;
+        if (deltaY < 0) deltaY = 0;
+        lastDeltaY = deltaY;
+        if (deltaY > 0) {
+          panel.style.transform = "translateY(" + deltaY + "px)";
+          if (e.cancelable) e.preventDefault();
+        }
+      }
+      function onEnd() {
+        if (!dragging) return;
+        dragging = false;
+        panel.classList.remove("dragging");
+        panel.style.transform = "";
+        var elapsed = Date.now() - startedAt;
+        var velocity = lastDeltaY / Math.max(elapsed, 1);
+        if (lastDeltaY > 110 || (lastDeltaY > 40 && velocity > 0.5)) {
+          closeFn();
+        }
+      }
+
+      handles.forEach(function(h) {
+        if (!h) return;
+        h.addEventListener("touchstart", onStart, { passive: true });
+        h.addEventListener("touchmove", onMove, { passive: false });
+        h.addEventListener("touchend", onEnd);
+        h.addEventListener("touchcancel", onEnd);
+      });
+    }
+
+    var resultsPanelEl = document.getElementById("results-panel");
+    enableSwipeToClose(
+      filtersPanel,
+      [filtersPanel.querySelector(".drag-handle"), filtersPanel.querySelector(".panel-head")],
+      function() { filtersPanel.classList.remove("is-mobile-open"); }
+    );
+    enableSwipeToClose(
+      resultsPanelEl,
+      [resultsPanelEl && resultsPanelEl.querySelector(".drag-handle"), resultsPanelEl && resultsPanelEl.querySelector(".panel-tabs")],
+      closeResults
+    );
           var searchEl = document.getElementById("search");
           var searchTimer;
           // Evento de búsqueda mientras escribes
