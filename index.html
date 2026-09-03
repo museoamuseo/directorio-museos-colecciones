@@ -1488,7 +1488,7 @@
   .hero { top: 4rem; width: 92vw; }
   .logo svg { max-width: 200px; }
   .hero .lead { display: none; } 
-  body::before { height: 10rem; } 
+  body::before { height: 7rem; } 
 
   /* Barra inferior flotante */
   .mobile-bottom-bar {
@@ -35145,48 +35145,21 @@ aboutP4: '<strong>Open data extracted from the <a href="https://directoriomuseos
         }
 
         function loadData() {
-          fetch('datos.json')
-      .then(function(response) {
-        if (!response.ok) throw new Error("No se pudo leer datos.json");
-        return response.json();
-      })
-      .then(function(newRows) {
-        if (!newRows || !newRows.length) throw new Error("El archivo JSON está vacío");
-
-        var rows = newRows.map(function(item, index) {
-          return {
-            id: item.id || "MUS-" + String(index + 1).padStart(4, '0'),
-            nombre: item.nombre,
-            tipo: item.tipo,
-            tipoEn: item.tipo_en,
-            ccaa: item.ccaa,
-            ccaaEn: item.ccaa_en,
-            provincia: item.provincia,
-            municipio: item.municipio,
-            tematica: item.tematica,
-            tematicaEn: item.tematica_en,
-            direccion: item.direccion_completa,
-            web: item.enlaces_web,
-            lng: item.longitud ? parseFloat(String(item.longitud).replace(',', '.')) : null,
-            lat: item.latitud ? parseFloat(String(item.latitud).replace(',', '.')) : null,
-           
-            gratis: item.acceso_gratuito === "Sí" || item.acceso_gratuito === "Yes",
-            titularidad: item.titularidad_simple,
-            accSilla: item.acc_fisica_silla === "TRUE",
-            accBucle: item.acc_sensorial_bucle === "TRUE",
-            t1: item["tarifa_0-5"] === "TRUE",
-            t2: item["tarifa_5-10"] === "TRUE",
-            t3: item["tarifa_+10"] === "TRUE"
-          };
-        });
-
-        onData(rows); 
-      })
-      .catch(function(err) {
-        console.error("Error cargando el catálogo:", err);
-        var veil = document.getElementById("loading-veil");
-        if(veil) veil.innerHTML = '<div style="padding:2rem;text-align:center;">Error al cargar el catálogo (' + err.message + ').</div>';
-      });
+          try {
+            var el = document.getElementById("museos-data");
+            if (!el || !el.textContent) {
+              throw new Error(t('noEmbeddedData'));
+            }
+            var rows = JSON.parse(el.textContent);
+            if (!rows || !rows.length) {
+              throw new Error(t('emptyEmbeddedData'));
+            }
+            onData(rows);
+          } catch (err) {
+            console.error("Error cargando el catálogo:", err);
+            showLoadError(t('readError') + " (" + err.message + ")");
+          }
+        }
 
 
         function ccaaLabel(v) {
@@ -35368,7 +35341,7 @@ aboutP4: '<strong>Open data extracted from the <a href="https://directoriomuseos
             }
           }
         }
-        
+        /* ===================== RUTA (itinerario) ===================== */
         function refreshRouteButtons() {
           document.querySelectorAll(".route-toggle-btn[data-route-id]").forEach(function(btn) {
             var id = btn.dataset.routeId;
@@ -36117,8 +36090,12 @@ btnMobRoute.addEventListener("click", function() {
     var routeBtn = e.target.closest(".route-toggle-btn");
     
     if (routeBtn) {
-    
+      // Damos 50 milisegundos para que tu código original termine 
+      // de añadir o quitar el museo del listado interno en memoria.
       setTimeout(function() {
+        
+        // Forzamos a la aplicación a repintar el panel derecho y las líneas del mapa
+        // utilizando tus funciones nativas.
         if (typeof renderRoutePanel === "function") {
           renderRoutePanel();
         }
@@ -36128,7 +36105,7 @@ btnMobRoute.addEventListener("click", function() {
         if (typeof render === "function") {
           render(); // Refresca las tarjetas por si cambian de estado
         }
-      
+        
       }, 50);
     }
   });
